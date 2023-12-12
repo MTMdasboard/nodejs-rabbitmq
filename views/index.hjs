@@ -1,0 +1,42 @@
+<html>
+
+<head>
+  <title>{{title}}</title>
+  <link rel="stylesheet" href="/stylesheets/style.css" />
+</head>
+
+<body>
+  <h1>Демонстрационный проект NodeJS и RabbitMQ</h1>
+  <form id="dataForm" action="/processData" method="post">
+    <label for="numberInput">Введите цифру:</label>
+    <input type="number" id="numberInput" name="numberInput" required />
+    <button type="submit">Выполнить запрос</button>
+  </form>
+
+  <span id="resultSpan"></span>
+
+  <script>
+    document.getElementById('dataForm').addEventListener('submit', function (event) {
+      event.preventDefault();
+      const numberInput = document.getElementById('numberInput').value;
+      fetch('/processData', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ numberInput })
+      })
+        .then(response => response.json())
+        .then(result => {
+          // Обновление DOM с полученными данными
+          document.getElementById('resultSpan').innerText = `Doubled number: ${result.result}`;
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+    });
+  </script>
+
+</body>
+
+</html>
