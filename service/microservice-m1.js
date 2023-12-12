@@ -23,7 +23,7 @@ function processQueueData(numberInput) {
       console.log(`[Microservice M1] Отправляет '${numberInput}' в очередь ${queue}`);
 
       // Создание очереди для ответа от микросервиса M2
-      channel.assertQueue(responseQueue, { durable: true });
+      channel.assertQueue(responseQueue, { durable: true, arguments: { 'x-message-ttl': 3600000 }  });
 
       // Получение ответа от микросервиса M2
       channel.consume(
