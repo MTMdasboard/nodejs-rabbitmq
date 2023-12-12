@@ -9,14 +9,18 @@ function processQueueData(numberInput) {
       const queue = "task_queue";
       const responseQueue = "response_queue";
 
+      const correlationId = generateUuid();
+
       // Опубликование сообщения в очередь
       channel.assertQueue(queue, { durable: true });
       channel.sendToQueue(
         queue,
         Buffer.from(JSON.stringify({ input: numberInput })),
-        { persistent: true }
+        { persistent: true,
+          correlationId: correlationId
+        }
       );
-      console.log(`[Microservice M1] Sent '${numberInput}' to the queue`);
+      console.log(`[Microservice M1] Отправляет '${numberInput}' в очередь ${queue}`);
 
       // Создание очереди для ответа от микросервиса M2
       channel.assertQueue(responseQueue, { durable: true });
@@ -25,12 +29,14 @@ function processQueueData(numberInput) {
       channel.consume(
         responseQueue,
         (msg) => {
-          const result = JSON.parse(msg.content.toString());
-          console.log(`[Microservice M1] Received result: %O`, result.result);
+          if (msg.properties.correlationId == correlationId) {
+            const result = JSON.parse(msg.content.toString());
+            console.log(`[Microservice M1] Получает результат из очереди ${responseQueue}: %O`, result.result);
 
-          channel.ack(msg); // Подтверждение получения сообщения
+            channel.ack(msg); // Подтверждение получения сообщения
 
-          resolve(result.result);
+            resolve(result.result);
+          }
         },
         { noAck: false }
       );
@@ -38,13 +44,19 @@ function processQueueData(numberInput) {
       // Закрытие соединения с RabbitMQ через 10 секунд
       setTimeout(() => {
         connection.close();
-        reject("Timeout: No response received");
+        reject("Timeout: Превышено время ожидания обработки запроса");
       }, 10000);
     } catch (err) {
       console.error(err);
       reject(err);
     }
   });
+}
+
+function generateUuid() {
+  return Math.random().toString() +
+         Math.random().toString() +
+         Math.random().toString();
 }
 
 module.exports = processQueueData;

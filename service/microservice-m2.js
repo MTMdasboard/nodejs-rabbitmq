@@ -12,22 +12,26 @@ async function startWorker() {
     channel.assertQueue(queue, { durable: true });
     channel.prefetch(1);
 
-    console.log(`[Microservice M2] Waiting for messages in ${queue}. To exit, press CTRL+C`);
+    console.log(`[Microservice M2] Ожидает задания в очереди ${queue}. To exit, press CTRL+C`);
 
     channel.consume(queue, async (msg) => {
       const input = JSON.parse(msg.content.toString());
       const doubledNumber = input.input * 2;
 
-      console.log(`[Microservice M2] Received %o`, input);
-      console.log(`[Microservice M2] Processed number: ${doubledNumber}`);
+      console.log(`[Microservice M2] Получает задание из очереди ${queue} %o`, input.input);
 
       // Имитация задержки обработки задания продолжительностью 5 секунд.
       setTimeout(() => {
         channel.ack(msg);
 
+        console.log(`[Microservice M2] Результат выполнения: ${doubledNumber}`);
+
         // Возвращаем результат в RabbitMQ, чтобы М1 мог отправить пользователю
-        channel.assertQueue(responseQueue, { durable: true });
-        channel.sendToQueue(responseQueue, Buffer.from(JSON.stringify({ result: doubledNumber })), { persistent: true });
+        channel.assertQueue(responseQueue, { durable: true, arguments: { 'x-message-ttl': 3600000 } });
+        channel.sendToQueue(responseQueue, Buffer.from(JSON.stringify({ result: doubledNumber })), { 
+          persistent: true,
+          correlationId: msg.properties.correlationId
+         });
       }, 5000);
     });
   } catch (err) {
